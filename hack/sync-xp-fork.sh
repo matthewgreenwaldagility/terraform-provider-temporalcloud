@@ -93,12 +93,18 @@ if [[ "$PUSH" -eq 0 ]]; then
 fi
 
 # 7. Commit the overlay, tag, and push the tag to origin.
+#    Force identity for BOTH author and committer so this works in CI (no git
+#    user configured there). git tag -a needs a tagger ident, which derives from
+#    the committer (GIT_COMMITTER_*) — not from GIT_AUTHOR_* or `-c` on commit.
+#    Scoped to this subshell, so a local caller's global git config is untouched.
 ( cd "$WORKTREE"
+  export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-xp-fork-bot}"
+  export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-xp-fork-bot@users.noreply.github.com}"
+  export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+  export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
   git checkout -b "xp/${VERSION}" >/dev/null
   git add -A
-  git -c user.name="${GIT_AUTHOR_NAME:-xp-fork-bot}" \
-      -c user.email="${GIT_AUTHOR_EMAIL:-xp-fork-bot@users.noreply.github.com}" \
-      commit -m "Add xpprovider overlay for ${VERSION}" >/dev/null
+  git commit -m "Add xpprovider overlay for ${VERSION}" >/dev/null
   git tag -a "${XP_TAG}" -m "xpprovider shim over upstream ${VERSION}"
   git push "$ORIGIN_REMOTE" "refs/tags/${XP_TAG}"
 )
