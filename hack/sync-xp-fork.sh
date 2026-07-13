@@ -49,8 +49,10 @@ fi
 
 # 1. Resolve the target upstream version.
 if [[ "$VERSION" == "latest" ]]; then
+  # Clean vX.Y.Z tags only: sort -V would otherwise rank v1.7.0-rc1 above v1.7.0.
   VERSION="$(git ls-remote --tags --refs "$UPSTREAM_URL" 'v*' \
-    | awk -F/ '{print $NF}' | sort -V | tail -1)"
+    | awk -F/ '{print $NF}' \
+    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
   [[ -n "$VERSION" ]] || { echo "could not resolve latest upstream tag" >&2; exit 1; }
 fi
 XP_TAG="${VERSION}${XP_SUFFIX}"
