@@ -1,12 +1,26 @@
 # xp-tooling — xpprovider fork automation
 
-This orphan branch is the home of the **automation** that maintains this fork of
-[`temporalio/terraform-provider-temporalcloud`](https://github.com/temporalio/terraform-provider-temporalcloud).
+## Overview
 
-The fork exists for exactly one reason: to expose the provider's Terraform
-Plugin Framework constructor to Upjet's no-fork runtime via an exported
-`xpprovider` package. Upstream keeps that constructor under `internal/`, which
-only code in the same module may import — hence a fork that adds one file.
+Upjet's no-fork runtime needs the Temporal Cloud provider's Go constructor
+in-process, but that constructor lives under `internal/`, which Go forbids other
+modules from importing. So this fork adds one tiny exported package,
+`xpprovider`, that re-exports the constructor from *inside* the module (where
+importing `internal/` is legal) — the same convention Upbound uses for its AWS
+provider ([reference](https://github.com/upbound/terraform-provider-aws/blob/e25b40151251/xpprovider/xpprovider.go)).
+Our Crossplane provider then consumes it via a one-line `go.mod` `replace`
+pointing at a fork tag (`v1.6.0-xp.1`). Nothing else in the upstream provider
+changes.
+
+It's low-maintenance by design because the shim is **purely additive** — it adds
+one new file and edits zero upstream files, so it can never merge-conflict with a
+new release. All the automation lives on this isolated orphan branch
+(`xp-tooling`), where a daily GitHub Action watches upstream for new releases
+and, for each one, overlays that single file onto the untagged release, runs
+`go build` as a drift detector, and publishes a matching `vX.Y.Z-xp.N` tag. In
+practice a new upstream release auto-produces a ready-to-consume fork tag with no
+human involvement; the only time anyone steps in is the rare case where upstream
+changes the constructor's signature, which the build catches loudly.
 
 ## How it works
 
