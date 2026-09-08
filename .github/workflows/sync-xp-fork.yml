@@ -27,12 +27,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           fetch-depth: 0 # full history + tags so ls-remote/idempotency works
+          token: ${{ secrets.XP_FORK_SYNC_TOKEN }}
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
         with:
           # The xp-tooling branch has no go.mod; pin to upstream's Go line.
-          # A future upstream Go bump surfaces here as a build failure (the
-          # intended "notify a human" signal).
+          # A future upstream Go bump surfaces here as a build failure
           go-version: "1.24"
 
       - name: Build and push xp tag
