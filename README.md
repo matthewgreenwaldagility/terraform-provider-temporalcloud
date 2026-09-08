@@ -14,7 +14,13 @@ changes.
 
 It's low-maintenance by design because the shim is **purely additive** — it adds
 one new file and edits zero upstream files, so it can never merge-conflict with a
-new release. All the automation lives on this isolated orphan branch
+new release. The one deliberate exception is `.github/workflows/*`: those are
+stripped from upstream's tree before tagging, so pushing an `-xp` tag never
+activates upstream's own CI (which expects secrets this fork doesn't have) in
+this repo. This means an `-xp` tag is **not** a byte-for-byte mirror of the
+upstream tag it's based on — `git diff <upstream-tag> <xp-tag>` will show
+`.github/workflows/*` as deleted; that's expected. All the automation lives on
+this isolated orphan branch
 (`xp-tooling`), where a daily GitHub Action watches upstream for new releases
 and, for each one, overlays that single file onto the untagged release, runs
 `go build` as a drift detector, and publishes a matching `vX.Y.Z-xp.N` tag. In
@@ -28,8 +34,9 @@ changes the constructor's signature, which the build catches loudly.
   for the shim. It is *additive*: it adds one package and edits no upstream
   file, so it can never merge-conflict with an upstream release.
 - **`hack/sync-xp-fork.sh`** — takes an upstream tag (e.g. `v1.6.0`), fetches it
-  into an isolated worktree, drops the overlay on top, runs `go build ./...`
-  (the drift detector), then tags `v1.6.0-xp.1` and pushes it.
+  into an isolated worktree, drops the overlay on top, deletes upstream's
+  `.github/workflows/*` (see above), runs `go build ./...` (the drift
+  detector), then tags `v1.6.0-xp.1` and pushes it.
 - **`.github/workflows/sync-xp-fork.yml`** — runs the script daily and on
   demand. This branch is the repo's default branch so the schedule can fire.
 

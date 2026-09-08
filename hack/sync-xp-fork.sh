@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 #
 # sync-xp-fork.sh — produce a "-xp" tag that is an unmodified upstream
-# terraform-provider-temporalcloud release plus the additive xpprovider overlay.
+# terraform-provider-temporalcloud release plus the additive xpprovider overlay,
+# minus upstream's own .github/workflows/*.
 #
 # The overlay (hack/fork-overlay/) never edits an upstream file, so this can
 # never merge-conflict. `go build ./...` after applying the overlay is the drift
 # detector: it fails iff upstream changed provider.New's signature or moved the
 # package — the only things that can break the shim.
+#
+# Upstream's workflow files are deliberately dropped before the tag is pushed:
+# pushing a ref makes GitHub evaluate any .github/workflows/* in that ref's
+# tree against this fork, live secrets and all. Upstream's release.yml expects
+# a signing key this fork doesn't have, so leaving it in makes every sync also
+# kick off a doomed release run. This is the one place the tag intentionally
+# diverges from a byte-for-byte upstream mirror — `git diff <upstream-tag>
+# <xp-tag>` will show .github/workflows/* as deleted.
 #
 # Usage:
 #   hack/sync-xp-fork.sh [<version>|latest] [--no-push]
@@ -82,7 +91,11 @@ git worktree add --detach "$WORKTREE" "$UPSTREAM_SHA" >/dev/null
 log "applying overlay from ${OVERLAY_DIR}"
 cp -R "$OVERLAY_DIR/." "$WORKTREE/"
 
-# 6. Drift detector: this must compile against the real upstream tree.
+# 6. Drop upstream's own workflows so pushing this tag can't trigger them
+#    (they'd run with this fork's secrets, not upstream's, and fail).
+rm -rf "$WORKTREE/.github/workflows"
+
+# 7. Drift detector: this must compile against the real upstream tree.
 log "go build ./... (drift detector)"
 ( cd "$WORKTREE" && go build ./... )
 log "build OK"
@@ -92,7 +105,7 @@ if [[ "$PUSH" -eq 0 ]]; then
   exit 0
 fi
 
-# 7. Commit the overlay, tag, and push the tag to origin.
+# 8. Commit the overlay, tag, and push the tag to origin.
 #    Force identity for BOTH author and committer so this works in CI (no git
 #    user configured there). git tag -a needs a tagger ident, which derives from
 #    the committer (GIT_COMMITTER_*) — not from GIT_AUTHOR_* or `-c` on commit.
